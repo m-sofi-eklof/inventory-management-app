@@ -40,7 +40,6 @@ public abstract class Product {
     }
 
     public static Product deserialize(String line, Consumer<String> onErrorMessage){
-        String errorMessage;
         String[] parts = line.split(";");
         if (parts.length < 6) {
             onErrorMessage.accept("Missing fields in line: " + line);
@@ -51,7 +50,7 @@ public abstract class Product {
             int articleID = Integer.parseInt(parts[1]);
             String name = parts[2];
 
-            int price = Integer.parseInt(parts[3]);
+            double price = Double.parseDouble(parts[3]);
             String description = parts[4];
 
             int stock = Integer.parseInt(parts[5]);

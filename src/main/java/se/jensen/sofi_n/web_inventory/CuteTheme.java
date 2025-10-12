@@ -59,16 +59,24 @@ public class CuteTheme {
     }
 
     public String buttonStyleString() {
-        return "-fx-background-color: linear-gradient(to bottom, #FFB7DF, #FF69B4);" + // depth gradience
-                        "-fx-background-radius: 12;" +
-                        "-fx-background-insets: 0;" +
+        return "-fx-background-color: linear-gradient(to bottom, #FFB7DF, #FF69B4);" + //light pink to pink gradience
+                        "-fx-background-radius: 12;" + //round background corners
+                        "-fx-border-radius: 12;" + //round border corners
+                        "-fx-background-insets: 0;" + //background to border
                         "-fx-text-fill: white;" +
                         "-fx-font-weight: bold;" +
-                        "-fx-effect: dropshadow(gaussian, #b25490, 8, 0.5, 0, 4);" + // pink undershadow
-                        "-fx-border-color: #FF69B4;" +
+                        "-fx-effect: dropshadow(gaussian, #b25490, 8, 0.5, 0, 4);" + //dark pink shadow
+                        "-fx-border-color: #FF69B4;" + //pink border
                         "-fx-border-width: 2;" +
-                        "-fx-border-radius: 12;" +
                         "-fx-padding: 12 32;"; // top<->bottom, left<->right
+    }
+    public String lowkeyButtonStyleString() {
+        return "-fx-background-color: radial-gradient( radius 135%, #CAB9FF, white 110%);"
+                + "-fx-min-width: 44px;"
+                + "-fx-min-height: 44px;"
+                + "-fx-max-width: 44px;"
+                + "-fx-max-height: 44px;"
+                + "-fx-effect: dropshadow(three-pass-box, #d4c7ff, 10, 0, 0, 1);";
     }
     public Font titleFont(int size){
         Font titleFont = Font.loadFont(getClass().getResourceAsStream("/fonts/SuperQuench-R9p8V.ttf"),size);
@@ -89,11 +97,6 @@ public class CuteTheme {
     public Font headerFont(int size){
         Font headerFont = Font.loadFont(getClass().getResourceAsStream("/fonts/MoonkidsPersonalUseExtbd-gxPZ3.ttf"),size);
         return headerFont;
-    }
-
-    public Font bodyFont(int size){
-        Font bodyFont = Font.loadFont(getClass().getResourceAsStream("/fonts/MoongladeDemoBold-jOzM.ttf"),size);
-        return bodyFont;
     }
 
     public static String spacedOut(String text){

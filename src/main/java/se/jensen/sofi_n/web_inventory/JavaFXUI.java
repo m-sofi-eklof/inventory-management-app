@@ -1,17 +1,17 @@
 package se.jensen.sofi_n.web_inventory;
 
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import java.util.LinkedHashMap;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-
+import java.util.Stack;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /// The JavaFX UI class
@@ -27,11 +27,12 @@ import java.util.function.Consumer;
 public class JavaFXUI implements UI {
     /// Logic related variables
     private final Stage STAGE;
-    private Pane root;
+    private StackPane root;
+    private final Stack<Runnable> viewHistory = new Stack<>(); //tracking history for back button
     private Inventory inventory;
     private final int MAIN_CONTENT_INDEX = 1;
-    private VBox pageContent;
-    private Button backToMenuButton;
+    private VBox currentContentBox;
+    private Button backButton;
 
 
     /// Styling variables
@@ -54,7 +55,6 @@ public class JavaFXUI implements UI {
      * to use as the main window for the program
      * */
     public JavaFXUI(Stage stage) {
-        this.backToMenuButton = makeBackToMenuButton();
         this.STAGE = stage;
     }
 
@@ -65,63 +65,6 @@ public class JavaFXUI implements UI {
 
 
     /// Override functions from implemented UI interface
-    /* The showDialog() function takes a String variable as argument and displays it in a text box*/
-    @Override
-    public void showDialog(String message, Runnable onBackToMenu) {
-        //create box
-        VBox dialogBox = new VBox(CONTENT_MARGIN);
-        //create text
-        Text messageText = new Text(message);
-        //creating backButton
-        Button backButton = mainButton("Back", onBackToMenu);
-        backButton.setPrefSize(SMALL_BUTTONWIDTH, SMALL_BUTTONHEIGHT);
-
-        dialogBox.getChildren().addAll(messageText, backToMenuButton);
-        dialogBox.setMinHeight(MAIN_BOX_HEIGHT);
-        dialogBox.setMaxWidth(MAIN_BOX_WIDTH + 100);
-
-        clearContent();
-        dialogBox.setAlignment(Pos.TOP_LEFT);
-        showContent(dialogBox);
-    }
-
-    /* The showTextWithTitle function takes two string arguments, a title and a message
-     * the title is displayed in styles from the CuteTheme class and the message is displayed in a textbox
-     * under it*/
-    @Override
-    public void showTextWithTitle(String title, String message) {
-        //box to contain everything
-        VBox showDialogBox = new VBox(CONTENT_MARGIN);
-        showDialogBox.setMaxWidth(MAIN_BOX_WIDTH+100);
-        showDialogBox.setStyle(cuteTheme.VBoxHBoxStyleString());
-
-        //make title label
-        Label pageTitle = new Label(CuteTheme.spacedOut(title));
-        pageTitle.setFont(cuteTheme.headerFont(HEADERFONTSIZE));
-        pageTitle.setStyle("-fx-text-fill: Black;");
-
-        //add label and set position
-        showDialogBox.getChildren().add(pageTitle);
-        showDialogBox.setAlignment(Pos.TOP_CENTER);
-
-        //box containing message
-        VBox textBox = new VBox(CONTENT_MARGIN);
-        Text showText = new Text(message);
-        textBox.getChildren().addAll(showText);
-        textBox.setAlignment(Pos.TOP_LEFT); //left aligned
-
-        //add message box to big box
-        showDialogBox.getChildren().add(textBox);
-
-        //setting  big box to content box sizing
-        showDialogBox.setPrefHeight(MAIN_BOX_HEIGHT);
-        showDialogBox.setMaxWidth(MAIN_BOX_WIDTH);
-
-        //clear previous and show
-        clearContent();
-        showContent(showDialogBox);
-    }
-
 
     /* The promptInput function takes a String prompt to display and a Consumer<String> onResult for the desired action
      * for the input String. Returns void. */
@@ -130,7 +73,6 @@ public class JavaFXUI implements UI {
         //outer box
         VBox contentBox = new VBox(CONTENT_MARGIN);
         contentBox.setAlignment(Pos.TOP_CENTER);
-
 
         //Box to contain
         VBox promptBox = new VBox(CONTENT_MARGIN);
@@ -151,11 +93,10 @@ public class JavaFXUI implements UI {
         promptBox.getChildren().addAll(promptLabel, inputField, submitButton); // adds label, field and submit to box
         promptBox.setStyle(cuteTheme.VBoxHBoxStyleString());
 
-        contentBox.getChildren().addAll(promptBox, backToMenuButton);
+        contentBox.getChildren().add(promptBox);
 
-        //clear and show
-        clearContent();
-        showContent(contentBox);
+        //
+        goToView(() -> showContent(contentBox));
 
     }
 
@@ -177,10 +118,6 @@ public class JavaFXUI implements UI {
      * onResult actions passed.*/
     @Override
     public void promptProductDetails(int id, Consumer<ProductInputDetails> onResult) {
-        //creating content box
-        VBox contentBox = new VBox(CONTENT_MARGIN);
-        contentBox.setAlignment(Pos.TOP_CENTER);
-
         //creating produuct details box
         VBox productDetailsBox = new VBox(10);
         productDetailsBox.setStyle(cuteTheme.VBoxHBoxStyleString());
@@ -209,86 +146,340 @@ public class JavaFXUI implements UI {
             String description = descriptionField.getText();
             //Does passed actions
             onResult.accept(new ProductInputDetails(name, priceStr, description));
-            //Goes back to menu MAYBE MOVE THIS TO PASSED ACTION???
-            clearContent();
-            showContent(makeMenuBox(inventory));
         });
         //Add to box
         productDetailsBox.getChildren().addAll(info, nameLabel, nameField, priceLabel, priceField, descriptionLabel, descriptionField, submitButton);
 
-        //back-button
-        Button cancelButton = new Button("Cancel");
-        cancelButton.setOnAction(event -> {
-
-        });
-
-
         //Clear previous and show box
-        clearContent();
-        showContent(productDetailsBox);
+        goToView(()-> showContent(productDetailsBox));
+    }
 
+    /* The showTextWithTitle function takes two string arguments, a title and a message
+     * the title is displayed in styles from the CuteTheme class and the message is displayed in a textbox
+     * under it*/
+    @Override
+    public void showTextWithTitle(String title, String message) {
+        //VBox
+        VBox showDialogBox = new VBox(CONTENT_MARGIN);
+        showDialogBox.setMaxWidth(MAIN_BOX_WIDTH);
+        showDialogBox.setStyle(cuteTheme.VBoxHBoxStyleString());
+
+        //make title label
+        Label pageTitle = new Label(CuteTheme.spacedOut(title));
+        pageTitle.setFont(cuteTheme.headerFont(HEADERFONTSIZE));
+        pageTitle.setStyle("-fx-text-fill: Black;");
+
+        //add label and set position
+        showDialogBox.getChildren().add(pageTitle);
+        showDialogBox.setAlignment(Pos.TOP_CENTER);
+
+        //box containing message
+        VBox textBox = new VBox(CONTENT_MARGIN);
+        Text showText = new Text(message);
+        textBox.getChildren().addAll(showText);
+        textBox.setAlignment(Pos.TOP_LEFT); //left aligned
+
+        //add message box to big box
+        showDialogBox.getChildren().addAll(textBox);
+
+        //clear previous and show
+        goToView(() -> showContent(showDialogBox));
+    }
+
+    @Override
+    public void showCategorySelection(Consumer<String> onCategorySelected) {
+        //outer content box
+        VBox contentBox = new VBox(CONTENT_MARGIN);
+        contentBox.setAlignment(Pos.CENTER);
+
+        //Title
+        Label title = new Label(CuteTheme.spacedOut("Choose category"));
+        title.setFont(cuteTheme.headerFont(HEADERFONTSIZE));
+
+        //Category selection box
+        VBox categoryBox = new VBox(CONTENT_MARGIN);
+        categoryBox.setAlignment(Pos.CENTER);
+        categoryBox.setMaxSize(MAIN_BOX_WIDTH, MAIN_BOX_HEIGHT);
+
+        //buttons
+        Button accButton = mainButton("Accessories", () -> onCategorySelected.accept("Accessories"));
+        Button eDrinkButton = mainButton("Energy drinks", () -> onCategorySelected.accept("Energy drinks"));
+        Button powderButton = mainButton("Protein powders", () -> onCategorySelected.accept("Protein powders"));
+        Button barButton = mainButton("Protein bars", () -> onCategorySelected.accept("Protein bars"));
+
+        categoryBox.getChildren().addAll(accButton, eDrinkButton, powderButton, barButton);
+        contentBox.getChildren().addAll(title, categoryBox);
+
+        goToView(() -> showContent(contentBox));
     }
 
 
-    /// Window and layout functions
+    @Override
+    public void promptNutrientInfo(FoodProduct foodProduct, Consumer<NutrientTableValues> values) {
+        //outer box
+        VBox contentBox = new VBox(CONTENT_MARGIN);
+        contentBox.setPrefSize(MAIN_BOX_WIDTH,MAIN_BOX_HEIGHT);
+        contentBox.setAlignment(Pos.CENTER);
+
+        //promptBox
+        VBox promptBox = new VBox(CONTENT_MARGIN);
+        promptBox.setMaxWidth(BUTTONWIDTH);
+        promptBox.setStyle(cuteTheme.VBoxHBoxStyleString());
+        promptBox.setAlignment(Pos.TOP_LEFT);
+
+        //Title
+        Label pageTitle = new Label("Enter nutrient Info");
+        pageTitle.setStyle("-fx-text-fill: Black; -fx-font-size: 18; -fx-font-weight: bold;");
+
+        //Labels and textfields
+        Label kcalLabel = new Label("Kcal:");
+        TextField kcalField = new TextField();
+        Label fatLabel = new Label("Fat:");
+        TextField fatField = new TextField();
+        Label carbsLabel = new Label("Carbs:");
+        TextField carbsField = new TextField();
+        Label proteinLabel = new Label("Protein:");
+        TextField proteinField = new TextField();
+
+        //input HBoxes
+        HBox kcalBox = new HBox(CONTENT_MARGIN*2);
+        kcalBox.getChildren().addAll(kcalLabel, kcalField);
+        HBox fatBox  = new HBox(CONTENT_MARGIN*2);
+        fatBox.getChildren().addAll(fatLabel,fatField);
+        HBox carbsBox = new HBox(CONTENT_MARGIN*2);
+        carbsBox.getChildren().addAll(carbsLabel, carbsField);
+        HBox proteinBox = new HBox(CONTENT_MARGIN*2);
+        proteinBox.getChildren().addAll(proteinLabel, proteinField);
+
+        promptBox.getChildren().addAll(pageTitle,kcalBox,fatBox,carbsBox,proteinBox);
+
+        //make object
+        NutrientTableValues nutrientValues = new  NutrientTableValues();
+        //Submitbutton
+        Button submitButton = new Button("Okay");
+        submitButton.setOnAction(event -> {
+            //Store inputs from textfields
+            nutrientValues.setStandardValues(
+                    kcalField.getText(),
+                    fatField.getText(),
+                    carbsField.getText(),
+                    proteinField.getText()
+            );
+            //Does passed actions
+            values.accept(nutrientValues);
+            //Goes back to menu
+            goToMenu();
+        });
+
+
+        //if energy drink
+        if(foodProduct instanceof EnergyDrink){
+            //Also add caffeine prompt
+            Label caffeineLabel = new Label("Caffeine:");
+            TextField caffeineField = new TextField();
+            HBox caffeineBox = new HBox(CONTENT_MARGIN*2);
+            caffeineBox.getChildren().addAll(caffeineLabel, caffeineField);
+            promptBox.getChildren().add(caffeineBox);
+
+
+            //store original submitButton actions
+            submitButton.setOnAction(event->{
+                //set values
+                nutrientValues.setStandardValues(
+                        kcalField.getText(),
+                        fatField.getText(),
+                        carbsField.getText(),
+                        proteinField.getText()
+                );
+                //set caffiene string
+                nutrientValues.setCaffeineString(caffeineField.getText());
+
+                //Does passed actions
+                values.accept(nutrientValues);
+                //Goes back to menu
+                goToMenu();
+            });
+        }
+
+        //clear and show
+        contentBox.getChildren().addAll(promptBox,submitButton);
+        goToView(()->showContent(contentBox));
+    }
+
+    @Override
+    public void displayProductInformation(Product product){
+        //HBox outer box
+        HBox outerBox = new HBox(CONTENT_MARGIN);
+        outerBox.setAlignment(Pos.CENTER);
+
+        //product info box
+        VBox leftBox = new VBox(CONTENT_MARGIN);
+        leftBox.setAlignment(Pos.CENTER);
+        leftBox.setStyle(cuteTheme.VBoxHBoxStyleString());
+
+        Label pageTitle = new Label(CuteTheme.spacedOut("Product information"));
+        pageTitle.setFont(cuteTheme.headerFont(HEADERFONTSIZE));
+        pageTitle.setStyle("-fx-text-fill: Black;");
+
+        leftBox.getChildren().add(pageTitle);
+        leftBox.setAlignment(Pos.TOP_CENTER);
+
+        VBox textBox = new VBox(CONTENT_MARGIN);
+        Text showText = new Text(
+                "ArticleID: "+ product.getArticleID()
+                +"\nName: "+ product.getName()
+                +"\nPrice: " +product.getPrice()
+                +"\nDescription: "+ product.getDescription()
+                +"\nStock: "+ product.getStock()
+        );
+        textBox.getChildren().add(showText);
+        textBox.setAlignment(Pos.TOP_LEFT); //left aligned
+        leftBox.getChildren().add(textBox);
+
+        //VBox remove button n nutrient table
+        VBox rightBox = new VBox(CONTENT_MARGIN);
+        rightBox.setAlignment(Pos.CENTER);
+
+        if (product instanceof FoodProduct){
+            if (((FoodProduct) product).getNutrientTable()!=null){
+                VBox nutrientTableBox = new VBox(10);
+                nutrientTableBox.setMaxWidth(300);
+                nutrientTableBox.setStyle(cuteTheme.VBoxHBoxStyleString());
+
+                //title
+                Label title = new Label("Nutrition information");
+                title.setFont(cuteTheme.headerFont(18));
+
+                //table header
+                Label tableName = new Label(product.getName() + " nutrients per 100g:");
+                tableName.setStyle("-fx-font-size: 12; -fx-font-weight: bold;");
+
+                //table
+                GridPane nutrientTableView = new GridPane();
+                int row = 0;
+                for (Map.Entry<String, Integer> entry : ((FoodProduct) product).getNutrientTable().entrySet()) {
+                    Label key = new Label(entry.getKey());
+                    Label value = new Label(entry.getValue().toString());
+                    key.setPrefHeight(25);
+                    value.setPrefHeight(25);
+                    key.setPrefWidth(225);
+                    value.setPrefWidth(75);
+                    key.setStyle("-fx-border-color:black; -fx-padding: 6;");
+                    value.setStyle("-fx-border-color:black; -fx-padding: 6;");
+                    nutrientTableView.add(key, 0, row);
+                    nutrientTableView.add(value, 1, row);
+                    row++;
+                }
+                nutrientTableBox.getChildren().addAll(title, tableName, nutrientTableView);
+                rightBox.getChildren().add(nutrientTableBox);
+            }
+        }
+
+        //remove product button
+        Button removeButton = mainButton("Remove product", ()->{inventory.removeProduct(product.articleID);});
+        rightBox.getChildren().add(removeButton);
+
+        outerBox.getChildren().addAll(leftBox, rightBox);
+
+        goToView(()->showContent(outerBox));
+    }
+
+
+    /// Window and initial setup
 
     /* The showWindow function takes a Pane root and displays the programs main menu scene on it. It also sets the
      * JavaFXU attribute root to the pane passed. */
-    public void showWindow(Pane root) {
-        STAGE.setScene(menuScene(root));
-        STAGE.show();
+    public void showWindow(StackPane root) {
         this.root = root;
+        STAGE.setScene(createAppScene(root));
+        STAGE.show();
+        goToMenu();
     }
 
     /*The showContent function takes a pane or VBox and adds it to the index for main content*/
     public void showContent(Pane box) {
-        pageContent.getChildren().add(MAIN_CONTENT_INDEX, box);
-        pageContent.setAlignment(Pos.TOP_CENTER);
+        if (currentContentBox.getChildren().size() > MAIN_CONTENT_INDEX) {
+            currentContentBox.getChildren().remove(MAIN_CONTENT_INDEX);
+        }
+        currentContentBox.getChildren().add(MAIN_CONTENT_INDEX, box);
+        currentContentBox.setAlignment(Pos.TOP_CENTER);
     }
 
     /* The clearContent function checks if mainContent has the index MAIN_CONTENT_INDEX and removes objects from
      * that index if true*/
-    public void clearContent() {
+    public void clearContent(Runnable viewRunnable) {
+        //storing content
+        viewHistory.push(viewRunnable);
         //clearing content
-        while (pageContent.getChildren().size() > MAIN_CONTENT_INDEX) { //has at least 0 to MAIN_CONTENT_INDEX indexes
-            pageContent.getChildren().remove(MAIN_CONTENT_INDEX); //removes this index until empty
+        while (currentContentBox.getChildren().size() > MAIN_CONTENT_INDEX) { //has at least 0 to MAIN_CONTENT_INDEX indexes
+            currentContentBox.getChildren().remove(MAIN_CONTENT_INDEX); //removes this index until empty
         }
         //resetting original postition settings
-        pageContent.setAlignment(Pos.TOP_CENTER);
-        pageContent.setTranslateY(TOP_MARGIN);
-        pageContent.setPadding(new Insets(0)); // reset padding if set dynamically
+        currentContentBox.setAlignment(Pos.TOP_CENTER);
+        currentContentBox.setTranslateY(TOP_MARGIN);
+        currentContentBox.setPadding(new Insets(0)); // reset padding if set dynamically
+
+        updateBackButtonVisibility();
     }
 
-    /// Scenes
+    private void updateBackButtonVisibility(){
+        backButton.setVisible(!viewHistory.isEmpty());
+    }
+
+    private void goToMenu(){
+        Runnable menuView = () -> showContent(makeMenuBox(inventory));
+        //Clear content and add "menuview" to history
+        clearContent((menuView));
+        //show menubox as the content
+        menuView.run();
+    }
+
+    private void goToView(Runnable viewRunnable) {
+        clearContent(viewRunnable);
+        viewRunnable.run();
+    }
+
     /*The private function menuScene takes the pane on which to set the scene and creates the look and function
      * of everything displayed in the window upon program start*/
-    private Scene menuScene(Pane parent) {
-
+    private Scene createAppScene(StackPane root) {
         //background
         final Pane background = cuteTheme.generateBackground();
 
         //Logo and header box
         VBox logoBox = makeLogoAndTitleBox();
 
-        //Main menu box
-        VBox menuBox = makeMenuBox(inventory);
-        menuBox.setAlignment(Pos.CENTER);
+        //back button
+        backButton = new Button("←");
+        backButton.setVisible(false); //hidden in original view
+        backButton.setFocusTraversable(false); //reduce accidental action activation
+        backButton.setStyle(cuteTheme.lowkeyButtonStyleString());
+        backButton.setOnAction(event -> {
+            if (!viewHistory.isEmpty()) {
+                viewHistory.pop();
+                if (!viewHistory.isEmpty()) {
+                    viewHistory.peek().run(); // This re-calls clearContent and restores that view *and pushes it to history*
+                } else {
+                    goToMenu();
+                }
+            }
+            updateBackButtonVisibility();
+        });
 
         //create main content and add title
-        pageContent = new VBox(CONTENT_MARGIN, logoBox, menuBox);
-        pageContent.setAlignment(Pos.TOP_CENTER);
-        pageContent.setTranslateY(TOP_MARGIN);
-        pageContent.setPrefHeight(MAIN_BOX_HEIGHT);
-        pageContent.setPrefWidth(MAIN_BOX_WIDTH);
+        currentContentBox = new VBox(CONTENT_MARGIN, logoBox);
+        currentContentBox.setAlignment(Pos.TOP_CENTER);
+        currentContentBox.setTranslateY(TOP_MARGIN);
+        currentContentBox.setPrefHeight(MAIN_BOX_HEIGHT);
+        currentContentBox.setPrefWidth(MAIN_BOX_WIDTH);
 
 
-        // add to parent
-        parent.getChildren().addAll(background, pageContent);
+        // add to root
+        root.getChildren().addAll(background, currentContentBox, backButton);
+        StackPane.setAlignment(backButton, Pos.TOP_LEFT);
 
         //return
-        return new Scene(parent, 800, 600);
+        return new Scene(root, 800, 600);
     }
-
 
     /// VBoxes
     private VBox makeLogoAndTitleBox() {
@@ -323,41 +514,22 @@ public class JavaFXUI implements UI {
      * The buttons are created with the mainButton function which takes a string to display on the button and actions
      * to preform on click event as parameters. */
     private VBox makeMenuBox(Inventory inventory) {
+        //clearing history bc root
+        viewHistory.clear();
         //create box
         VBox mainMenuBox = new VBox(CONTENT_MARGIN);
         mainMenuBox.setAlignment(Pos.TOP_CENTER);
         mainMenuBox.setMaxWidth(MAIN_BOX_WIDTH);
 
         ///add - button
-        Button addButton = mainButton("Add product", () -> {
-            inventory.startAddProductFlow(() -> {
-                clearContent();
-                showContent(makeMenuBox(inventory));
-            });
-        });
+        Button addButton = mainButton("Add product", inventory::startAddProductFlow);
 
         /// list - button
-        Button listButton = mainButton("List products", () -> {
-            inventory.listProducts(); //displays list of products and stock
+        //displays list of products and stock
+        Button listButton = mainButton("List products", inventory::listProducts);
 
-            //make okay - button
-            Button okayButton = new Button("Okay");
-            okayButton.setStyle(cuteTheme.buttonStyleString());
-            okayButton.setOnAction(event -> {
-                //remove everything but log/title and show main menu
-                clearContent();
-                showContent(makeMenuBox(inventory));
-            });
-            //add okay button to content box
-            pageContent.getChildren().add(okayButton);
-        });
         /// info - button
-        Button infoButton = mainButton("Info", () -> {
-            inventory.startProductInfoFlow(() -> {
-                clearContent();
-                showContent(makeMenuBox(inventory));
-            });
-        });
+        Button infoButton = mainButton("Info", inventory::startProductInfoFlow);
         /// Stock - button
         Button manageStockButton = mainButton("Manage stock", this::showStockOptions);
 
@@ -371,39 +543,7 @@ public class JavaFXUI implements UI {
         return mainMenuBox;
     }
 
-    /* The makeCategoryAddBox function creates a box with buttons for each category of product as well as a backToMenuButton button
-     * The function takes an object of the inventory class as argument and passes it to the addOfCategoryButton function along with
-     * a String representing the category value of the product that is to be added */
 
-    /// Alternative to make category info box
-    @Override
-    public void showCategorySelection(Consumer<String> onCategorySelected, Runnable onBackToMenu) {
-        //outer content box
-        VBox contentBox = new VBox(CONTENT_MARGIN);
-        contentBox.setAlignment(Pos.CENTER);
-
-        //Title
-        Label title = new Label(CuteTheme.spacedOut("Choose category"));
-        title.setFont(cuteTheme.headerFont(HEADERFONTSIZE));
-
-        //Category selection box
-        VBox categoryBox = new VBox(CONTENT_MARGIN);
-        categoryBox.setAlignment(Pos.CENTER);
-        categoryBox.setMaxSize(MAIN_BOX_WIDTH, MAIN_BOX_HEIGHT);
-
-        //buttons
-        Button accButton = mainButton("Accessories", () -> onCategorySelected.accept("Accessories"));
-        Button eDrinkButton = mainButton("Energy drinks", () -> onCategorySelected.accept("Energy drinks"));
-        Button powderButton = mainButton("Protein powders", () -> onCategorySelected.accept("Protein powders"));
-        Button barButton = mainButton("Protein bars", () -> onCategorySelected.accept("Protein bars"));
-        Button backButton = mainButton("Back", onBackToMenu);
-
-        categoryBox.getChildren().addAll(accButton, eDrinkButton, powderButton, barButton, backButton);
-        contentBox.getChildren().addAll(title, categoryBox);
-
-        clearContent();
-        showContent(categoryBox);
-    }
 
     private void showStockOptions(){
         //create outer box
@@ -421,44 +561,30 @@ public class JavaFXUI implements UI {
 
         //Buttons for stock options
         Button increaseStockButton = mainButton("Increase stock", () -> {
-            clearContent();
-            inventory.userPromptID(id -> inventory.userIncreaseStock(id,
-                    () -> {
-                        //on success actions - might change
-                        clearContent();
-                        showContent(makeMenuBox(inventory));
-                    },
-                    ()-> {
-                        //on failure action - might change
-                        clearContent();
-                        showContent(makeMenuBox(inventory));
-                    }));
+            inventory.userPromptID(id -> //on success actions - might change
+                    inventory.userIncreaseStock(id,
+                            //on sucess action - might change
+                            this::goToMenu,
+                            //on failure action - might change
+                            this::goToMenu));
         });
         increaseStockButton.setPrefWidth(160);
 
         Button decreaseStockButton = mainButton("Decrease stock", () -> {
-            clearContent();
             inventory.userPromptID(id -> inventory.userDecreaseStock(id,
-                    () -> {
-                        //on success actions - might change
-                        clearContent();
-                        showContent(makeMenuBox(inventory));
-                    },
-                    ()-> {
-                        //on failure action - might change
-                        clearContent();
-                        showContent(makeMenuBox(inventory));
-                    }));
+                    //on sucess action - might change
+                    this::goToMenu,
+                    //on failure action - might change
+                    this::goToMenu));
         });
         decreaseStockButton.setPrefWidth(160);
 
         //add to boxes
         optionsBox.getChildren().addAll(increaseStockButton, decreaseStockButton);
-        contentBox.getChildren().addAll(pageTitle, optionsBox, backToMenuButton);
+        contentBox.getChildren().addAll(pageTitle, optionsBox);
 
         //clear and show
-        clearContent();
-        showContent(contentBox);
+        goToView(()->showContent(contentBox));
     }
 
     /// Buttons
@@ -473,22 +599,5 @@ public class JavaFXUI implements UI {
         button.setOnAction(event -> action.run());
         button.setStyle(cuteTheme.buttonStyleString());
         return button;
-    }
-
-    /* The function makeBackToMenuButton creates a mainButton with the display text "Back" and runable action
-     * resetting the inventory objects currentSearchKey by calling the Inventory function clearSearchKey,
-     * clearing any content that may be in the main content index of the page content box using clearContent,
-     * and showing the programs main menu through the showContent and makeMenuBox functions*/
-    private Button makeBackToMenuButton() {
-        //create button
-        Button back = mainButton("Back", () -> {
-            //pass action
-            clearContent();
-            showContent(makeMenuBox(inventory));
-        });
-        //set size
-        back.setMaxSize(SMALL_BUTTONWIDTH, SMALL_BUTTONHEIGHT);
-        //return
-        return back;
     }
 }

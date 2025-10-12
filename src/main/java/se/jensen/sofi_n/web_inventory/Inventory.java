@@ -12,60 +12,81 @@ public class Inventory {
     private List<FoodProduct> foodProducts = new ArrayList<>();
     private final int LOWEST_ID = 10000;
     private String PRODUCTS_FILE = "Products.txt";
+    private String NUTRIENT_TABLE_FILE = "nutrient_tables.txt";
 
     /// Constructor
     public Inventory(UI ui) {
         this.ui = ui;
         loadProductsFromFile(PRODUCTS_FILE);
         updateFoodProductsList();
+        loadNutrientTablesFromFile(NUTRIENT_TABLE_FILE);
     }
 
     /// File handling logic
-    public void updateProductFile(String fileName) {
-        try(PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
+    private void updateProductFile(String fileName) {
+        try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
             for (Product product : products) {
-                out.println(product);//one product per line
+                out.println(product.serialize());//one product per line
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             ui.showError("Couldn't save: " + e.getMessage());
         }
     }
-    public void loadProductsFromFile(String fileName) {
+
+    private void loadProductsFromFile(String fileName) {
         products.clear();
-        try(BufferedReader in = new BufferedReader(new FileReader(fileName))) {
+        try (BufferedReader in = new BufferedReader(new FileReader(fileName))) {
             String line;
-            while ((line = in.readLine()) != null){
+            while ((line = in.readLine()) != null) {
                 Product product = Product.deserialize(line, ui::showError);
                 if (product != null)
                     products.add(product);
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             ui.showError("Couldn't load: " + e.getMessage());
         }
     }
 
+    private void loadNutrientTablesFromFile(String fileName) {
+        try (BufferedReader in = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = in.readLine()) != null) {
+                FoodProduct.deserializeNutrientValues(line, foodProducts, ui::showError);
+            }
+        } catch (IOException e) {
+            ui.showError("Couldn't load: " + e.getMessage());
+        }
+    }
+
+    private void updateNutrientTablesFile(String fileName) {
+        try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
+            for (FoodProduct foodProduct : foodProducts) {
+                if (foodProduct.getNutrientTable() == null) {
+                    ui.showError("No nutrient table found for article " + foodProduct.articleID);
+                } else if (foodProduct.getNutrientTable().size() < 4) {
+                    ui.showError("Wrong format nutrient table for article " + foodProduct.articleID);
+                } else {
+                    out.println(foodProduct.serializeNutrientValues());
+                }
+            }
+        } catch (IOException e) {
+            ui.showError("Couldn't save: " + e.getMessage());
+        }
+    }
+
     /// List storage functions
-    public void updateFoodProductsList(){
+    public void updateFoodProductsList() {
         foodProducts.clear(); //avoid duplicates
-        for(Product product : products){
+        for (Product product : products) {
             if (product instanceof FoodProduct) {
                 foodProducts.add((FoodProduct) product); //Cast and add
             }
         }
     }
 
-    public Product searchProduct(int id){
-        for (Product product : products){
-            if(product.articleID==id){
-                return product;
-            }
-        }
-        return null;
-    }
-
-    private FoodProduct searchFoodProduct(int id){
-        for (FoodProduct product : foodProducts){
-            if(product.articleID==id){
+    public Product searchProduct(int id) {
+        for (Product product : products) {
+            if (product.articleID == id) {
                 return product;
             }
         }
@@ -73,25 +94,25 @@ public class Inventory {
     }
 
     /// Adding product logic
-    public void startAddProductFlow(Runnable returnToMenu){
-        ui.showCategorySelection(category->{
-            promptAddDetails(category, returnToMenu);
-        },returnToMenu);
+    public void startAddProductFlow() {
+        ui.showCategorySelection(category -> {
+            promptAddDetails(category);
+        });
     }
 
-    private void promptAddDetails(String category, Runnable returnToMenu){
-        int id =generateArticleID();
-        ui.promptProductDetails(id, details-> processAddDetails(category, id, details, returnToMenu));
+    private void promptAddDetails(String category) {
+        int id = generateArticleID();
+        ui.promptProductDetails(id, details -> processAddDetails(category, id, details));
     }
 
-    public int generateArticleID(){
-        int id =LOWEST_ID;
-        if (products.isEmpty()){
+    public int generateArticleID() {
+        int id = LOWEST_ID;
+        if (products.isEmpty()) {
             return id;
         }
         //set id to highest articleID in list
-        for (Product product : products){
-            if(product.articleID>id){
+        for (Product product : products) {
+            if (product.articleID > id) {
                 id = product.articleID;
             }
         }
@@ -99,24 +120,24 @@ public class Inventory {
         return id;
     }
 
-    private void processAddDetails(String category, int id, ProductInputDetails details, Runnable returnToMenu){
+    private void processAddDetails(String category, int id, ProductInputDetails details) {
         //validating details
         if (details == null || details.name == null || details.name.trim().isEmpty()) {
             ui.showError("Product name can't be empty");
             return;
         }
-        if(details.priceStr==null || details.priceStr.trim().isEmpty()){
+        if (details.priceStr == null || details.priceStr.trim().isEmpty()) {
             ui.showError("Product price can't be empty");
             return;
         }
         double price;
         try {
             price = Double.parseDouble(details.priceStr);
-        }catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             ui.showError("Invalid price format");
             return;
         }
-        if (details.description == null || details.description.trim().isEmpty()){
+        if (details.description == null || details.description.trim().isEmpty()) {
             ui.showError("Product description can't be empty");
             return;
         }
@@ -140,6 +161,9 @@ public class Inventory {
                 energyDrink.setPrice(price);
                 //store
                 products.add(energyDrink);
+                ui.promptNutrientInfo(energyDrink, values -> {
+                    processNutrientDetails(values, energyDrink);
+                });
                 break;
             case "Protein bars":
                 //create
@@ -149,6 +173,9 @@ public class Inventory {
                 proteinBar.setPrice(price);
                 //store
                 products.add(proteinBar);
+                ui.promptNutrientInfo(proteinBar, values -> {
+                    processNutrientDetails(values, proteinBar);
+                });
                 break;
             case "Protein powders":
                 //create
@@ -158,6 +185,9 @@ public class Inventory {
                 proteinPowder.setPrice(price);
                 //store
                 products.add(proteinPowder);
+                ui.promptNutrientInfo(proteinPowder, values -> {
+                    processNutrientDetails(values, proteinPowder);
+                });
                 break;
             default:
                 ui.showError("Invalid category");
@@ -166,13 +196,45 @@ public class Inventory {
         updateFoodProductsList();
     }
 
-    public void startProductInfoFlow(Runnable returnToMenu){
-        ui.showCategorySelection(category->{
-            promptProductID(category,returnToMenu);
-        }, returnToMenu);
+
+    public void processNutrientDetails(NutrientTableValues values, FoodProduct foodProduct) {
+        if (foodProduct instanceof EnergyDrink) {
+            try {
+                int kcal = Integer.parseInt(values.kcalString);
+                int fat = Integer.parseInt(values.fatString);
+                int carbs = Integer.parseInt(values.carbsString);
+                int protein = Integer.parseInt(values.proteinString);
+                int caffeine = Integer.parseInt(values.caffeineString);
+                ((EnergyDrink) foodProduct).setNutrientTable(kcal, fat, carbs, protein, caffeine);
+
+            } catch (NumberFormatException e) {
+                ui.showError("Invalid input format: " + e.getMessage());
+            } catch (NullPointerException e) {
+                ui.showError(e.getMessage());
+            }
+        } else {
+            try {
+                int kcal = Integer.parseInt(values.kcalString);
+                int fat = Integer.parseInt(values.fatString);
+                int carbs = Integer.parseInt(values.carbsString);
+                int protein = Integer.parseInt(values.proteinString);
+                foodProduct.setNutrientTable(kcal, fat, carbs, protein);
+            } catch (NumberFormatException e) {
+                ui.showError("Invalid input format: " + e.getMessage());
+            } catch (NullPointerException e) {
+                ui.showError(e.getMessage());
+            }
+        }
+        updateNutrientTablesFile(NUTRIENT_TABLE_FILE);
     }
 
-    private void promptProductID(String category, Runnable returnToMenu){
+
+    /// Show product info logic
+    public void startProductInfoFlow(){
+        promptProductID(this::showProductInfo);
+    }
+
+    private void promptProductID(Consumer<Integer> onResult) {
         ui.promptInput("Enter product ID:", IDstr ->{
             int id;
             try {
@@ -185,32 +247,20 @@ public class Inventory {
                 ui.showError("Invalid ID format");
                 return;
             }
-            showProductInfo(category, id, returnToMenu);
+            onResult.accept(id);
         });
     }
 
 
-    public void showProductInfo(String category, int id, Runnable returnToMenu){
-        //Fetch product
+    public void showProductInfo(int id){
         Product product = searchProduct(id);
-        FoodProduct foodProduct = searchFoodProduct(id);
-
-        String info;
-        if("Accessories".equals(category)){
-            info = (product==null || product.toString()==null) ?
-                    "Product information does not exist or was not found" : product.toString();
-        } else {
-            if(foodProduct == null || foodProduct.toString() == null){
-                info = "Product information does not exist or was not found";
-            } else{
-                info = foodProduct.toString();{
-                    if(foodProduct.nutrientTable!=null){
-                        info += "\n" +  foodProduct.nutrientTable.toString();
-                    }
-                }
-            }
+        if (product==null){
+            ui.showError("Invalid product ID");
+        }else if (product.toString()==null || product.toString().isEmpty()){
+            ui.showError("Product information does not exist or was not found");
+        }else{
+            ui.displayProductInformation(product);
         }
-        ui.showDialog(info, returnToMenu);
     }
 
     public void listProducts(){
@@ -229,6 +279,9 @@ public class Inventory {
     public void removeProduct(int id){
         products.removeIf(product -> product.articleID == id);
         foodProducts.removeIf(foodProduct -> foodProduct.articleID == id);
+        updateProductFile(PRODUCTS_FILE);
+        updateNutrientTablesFile(NUTRIENT_TABLE_FILE);
+
     }
     private void increaseStock (int id, int quantity){
         searchProduct(id).stock += quantity;

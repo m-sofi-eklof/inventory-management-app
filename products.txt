@@ -1,0 +1,9 @@
+Accessory;10000;Pink logo lifting straps;99.0;Extra mjuka vadderade dragremmar i rosa;0
+Accessory;10001;Lavender logo lifting straps;99.0;Extra mjuka vadderade dragremmar i ljuslila;0
+Accessory;10002;Black logo lifting straps;99.0;Extra mjuka vadderade dragremmar i svart;0
+Accessory;10003;Logo waterbottle pink;79.0;Rosa vattenflaska 750ml;0
+Accessory;10004;Logo waterbottle black;79.0;Svart vattenflaska 750ml;0
+ProteinBar;10005;Fudge brownie protein bar;199.0;12pack proteinbarer med brownie smak;0
+ProteinPowder;10006;Isopure Whey Vanillabean Latte;299.0;750g wheyprotein med vaniljlatte-smak;0
+EnergyDrink;10007;PopEnergy Strawberry Bubbles;299.0;24pack sokerfri energidryck jordgubb;0
+EnergyDrink;10008;PopEnergy Gummy Bear Fizz;299.0;Sockerfri energidryck med gummibjörnsmak;0
