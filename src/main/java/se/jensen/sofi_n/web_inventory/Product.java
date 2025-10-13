@@ -32,13 +32,17 @@ public abstract class Product {
     public void setDescription(String description) {this.description = description;}
 
     /// Abstract Method
+    /*The function category returns a String representing the category name*/
     public abstract String category();
 
     /// File handling methods
+    /*The serialize function returns a String with classname, article id, name, price, description and stock, separated
+    * by semicolon.*/
     public String serialize(){
         return getClass().getSimpleName() + ";" + articleID + ";" + name + ";" + price + ";" + description + ";" + stock;
     }
 
+    /*The deserialize function takes a line String argument */
     public static Product deserialize(String line, Consumer<String> onErrorMessage){
         String[] parts = line.split(";");
         if (parts.length < 6) {

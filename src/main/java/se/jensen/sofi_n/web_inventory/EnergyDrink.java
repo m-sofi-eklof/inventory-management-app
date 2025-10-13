@@ -11,8 +11,8 @@ public class EnergyDrink extends FoodProduct {
     }
 
     //overload
-    public void setNutrientTable(int kcal, int fat, int carbs, int protein, int caffiene){
+    public void setNutrientTable(int kcal, int fat, int carbs, int protein, int caffeine){
         super.setNutrientTable(kcal, fat, carbs, protein);
-        getNutrientTable().put("Caffeine(mg)", caffiene);
+        getNutrientTable().put("Caffeine(mg)", caffeine);
     }
 }

@@ -3,7 +3,6 @@ package se.jensen.sofi_n.web_inventory;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import java.util.LinkedHashMap;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -27,20 +26,16 @@ import java.util.function.Consumer;
 public class JavaFXUI implements UI {
     /// Logic related variables
     private final Stage STAGE;
-    private StackPane root;
     private final Stack<Runnable> viewHistory = new Stack<>(); //tracking history for back button
     private Inventory inventory;
     private final int MAIN_CONTENT_INDEX = 1;
-    private VBox currentContentBox;
+    private VBox mainContentBox;
     private Button backButton;
-
 
     /// Styling variables
     private final CuteTheme cuteTheme = new CuteTheme();
     private final int BUTTONWIDTH = 300;
     private final int BUTTONHEIGHT = 60;
-    private final int SMALL_BUTTONWIDTH = 100;
-    private final int SMALL_BUTTONHEIGHT = 45;
     private final double MAIN_BOX_WIDTH = 400;
     private final double MAIN_BOX_HEIGHT = 250;
     private final int TOP_MARGIN = 50;
@@ -58,7 +53,7 @@ public class JavaFXUI implements UI {
         this.STAGE = stage;
     }
 
-    //inventory setter
+    ///inventory setter
     public void setInventory(Inventory inventory) {
         this.inventory = inventory;
     }
@@ -242,13 +237,13 @@ public class JavaFXUI implements UI {
         TextField proteinField = new TextField();
 
         //input HBoxes
-        HBox kcalBox = new HBox(CONTENT_MARGIN*2);
+        HBox kcalBox = new HBox();
         kcalBox.getChildren().addAll(kcalLabel, kcalField);
-        HBox fatBox  = new HBox(CONTENT_MARGIN*2);
+        HBox fatBox  = new HBox();
         fatBox.getChildren().addAll(fatLabel,fatField);
-        HBox carbsBox = new HBox(CONTENT_MARGIN*2);
+        HBox carbsBox = new HBox();
         carbsBox.getChildren().addAll(carbsLabel, carbsField);
-        HBox proteinBox = new HBox(CONTENT_MARGIN*2);
+        HBox proteinBox = new HBox();
         proteinBox.getChildren().addAll(proteinLabel, proteinField);
 
         promptBox.getChildren().addAll(pageTitle,kcalBox,fatBox,carbsBox,proteinBox);
@@ -376,7 +371,10 @@ public class JavaFXUI implements UI {
         }
 
         //remove product button
-        Button removeButton = mainButton("Remove product", ()->{inventory.removeProduct(product.articleID);});
+        Button removeButton = mainButton("Remove product", ()->{
+            inventory.removeProduct(product.articleID);
+            goToMenu();
+        });
         rightBox.getChildren().add(removeButton);
 
         outerBox.getChildren().addAll(leftBox, rightBox);
@@ -390,7 +388,6 @@ public class JavaFXUI implements UI {
     /* The showWindow function takes a Pane root and displays the programs main menu scene on it. It also sets the
      * JavaFXU attribute root to the pane passed. */
     public void showWindow(StackPane root) {
-        this.root = root;
         STAGE.setScene(createAppScene(root));
         STAGE.show();
         goToMenu();
@@ -398,11 +395,11 @@ public class JavaFXUI implements UI {
 
     /*The showContent function takes a pane or VBox and adds it to the index for main content*/
     public void showContent(Pane box) {
-        if (currentContentBox.getChildren().size() > MAIN_CONTENT_INDEX) {
-            currentContentBox.getChildren().remove(MAIN_CONTENT_INDEX);
+        if (mainContentBox.getChildren().size() > MAIN_CONTENT_INDEX) {
+            mainContentBox.getChildren().remove(MAIN_CONTENT_INDEX);
         }
-        currentContentBox.getChildren().add(MAIN_CONTENT_INDEX, box);
-        currentContentBox.setAlignment(Pos.TOP_CENTER);
+        mainContentBox.getChildren().add(MAIN_CONTENT_INDEX, box);
+        mainContentBox.setAlignment(Pos.TOP_CENTER);
     }
 
     /* The clearContent function checks if mainContent has the index MAIN_CONTENT_INDEX and removes objects from
@@ -411,13 +408,13 @@ public class JavaFXUI implements UI {
         //storing content
         viewHistory.push(viewRunnable);
         //clearing content
-        while (currentContentBox.getChildren().size() > MAIN_CONTENT_INDEX) { //has at least 0 to MAIN_CONTENT_INDEX indexes
-            currentContentBox.getChildren().remove(MAIN_CONTENT_INDEX); //removes this index until empty
+        while (mainContentBox.getChildren().size() > MAIN_CONTENT_INDEX) { //has at least 0 to MAIN_CONTENT_INDEX indexes
+            mainContentBox.getChildren().remove(MAIN_CONTENT_INDEX); //removes this index until empty
         }
         //resetting original postition settings
-        currentContentBox.setAlignment(Pos.TOP_CENTER);
-        currentContentBox.setTranslateY(TOP_MARGIN);
-        currentContentBox.setPadding(new Insets(0)); // reset padding if set dynamically
+        mainContentBox.setAlignment(Pos.TOP_CENTER);
+        mainContentBox.setTranslateY(TOP_MARGIN);
+        mainContentBox.setPadding(new Insets(0)); // reset padding if set dynamically
 
         updateBackButtonVisibility();
     }
@@ -466,15 +463,15 @@ public class JavaFXUI implements UI {
         });
 
         //create main content and add title
-        currentContentBox = new VBox(CONTENT_MARGIN, logoBox);
-        currentContentBox.setAlignment(Pos.TOP_CENTER);
-        currentContentBox.setTranslateY(TOP_MARGIN);
-        currentContentBox.setPrefHeight(MAIN_BOX_HEIGHT);
-        currentContentBox.setPrefWidth(MAIN_BOX_WIDTH);
+        mainContentBox = new VBox(CONTENT_MARGIN, logoBox);
+        mainContentBox.setAlignment(Pos.TOP_CENTER);
+        mainContentBox.setTranslateY(TOP_MARGIN);
+        mainContentBox.setPrefHeight(MAIN_BOX_HEIGHT);
+        mainContentBox.setPrefWidth(MAIN_BOX_WIDTH);
 
 
         // add to root
-        root.getChildren().addAll(background, currentContentBox, backButton);
+        root.getChildren().addAll(background, mainContentBox, backButton);
         StackPane.setAlignment(backButton, Pos.TOP_LEFT);
 
         //return
@@ -483,15 +480,13 @@ public class JavaFXUI implements UI {
 
     /// VBoxes
     private VBox makeLogoAndTitleBox() {
-        //color
-        String LOGO_PINK = "#FF69b4;";
         //spacing
         final int TITLESPACING = -5;
 
         //title
         final Label logo = new Label("Pop Protein");
         logo.setFont(cuteTheme.titleFont(TITLEFONTSIZE));
-        logo.setStyle("-fx-text-fill: " + LOGO_PINK);
+        logo.setStyle("-fx-text-fill: " + CuteTheme.LOGO_PINK);
         cuteTheme.titleDropShadow(logo);
 
         //header
@@ -561,20 +556,16 @@ public class JavaFXUI implements UI {
 
         //Buttons for stock options
         Button increaseStockButton = mainButton("Increase stock", () -> {
-            inventory.userPromptID(id -> //on success actions - might change
+            inventory.promptProductID(id -> //on success actions
                     inventory.userIncreaseStock(id,
-                            //on sucess action - might change
-                            this::goToMenu,
-                            //on failure action - might change
+                            //on success action
                             this::goToMenu));
         });
         increaseStockButton.setPrefWidth(160);
 
         Button decreaseStockButton = mainButton("Decrease stock", () -> {
-            inventory.userPromptID(id -> inventory.userDecreaseStock(id,
-                    //on sucess action - might change
-                    this::goToMenu,
-                    //on failure action - might change
+            inventory.promptProductID(id -> inventory.userDecreaseStock(id,
+                    //on sucess action
                     this::goToMenu));
         });
         decreaseStockButton.setPrefWidth(160);

@@ -9,7 +9,7 @@ public class Main extends Application { //extends javaFX application args
     @Override //application overide function
     public void start(Stage primaryStage) {
         JavaFXUI ui = new JavaFXUI(primaryStage); // creates instance of UI class
-        Inventory inventory = new Inventory(ui); // creating instance of inventory logic handler
+        Inventory inventory = new Inventory(ui, "Products.txt", "nutrient_tables.txt"); // creating instance of inventory logic handler
         ui.setInventory(inventory);
 
         StackPane root = new StackPane(); //creating root stackpane
