@@ -2,8 +2,10 @@ package se.jensen.sofi_n.web_inventory;
 
 import java.util.function.Consumer;
 
+/// The abstract class Product contains all the attributes and functions that each inheriting product type should have
+/// for this application.
 public abstract class Product {
-    /// Variables
+    /// Attributes
     protected int articleID;
     protected String name;
     protected double price;
@@ -42,13 +44,23 @@ public abstract class Product {
         return getClass().getSimpleName() + ";" + articleID + ";" + name + ";" + price + ";" + description + ";" + stock;
     }
 
-    /*The deserialize function takes a line String argument */
+    /*The deserialize function takes a String argument consisting of one line of code from the products file
+    * splits, iit at the semicolons, verifies the parts and if valid, creates a product using them.
+    * The product is then returned as returnvalue. The functions second argument is a Consumer string type
+    * with actions to preform on any resulting error-message String.*/
     public static Product deserialize(String line, Consumer<String> onErrorMessage){
+        //split into parts
         String[] parts = line.split(";");
+        //validate lenght
         if (parts.length < 6) {
             onErrorMessage.accept("Missing fields in line: " + line);
             return null;
         }
+        if (parts.length > 6) {
+            onErrorMessage.accept("Too many fields in line: " + line);
+            return null;
+        }
+        //validate parts
         String className = parts[0];
         try {
             int articleID = Integer.parseInt(parts[1]);
@@ -58,6 +70,7 @@ public abstract class Product {
             String description = parts[4];
 
             int stock = Integer.parseInt(parts[5]);
+            //create product
             switch (className) {
                 case "Accessory":
                     Accessory accessory = new Accessory(articleID);
@@ -76,13 +89,16 @@ public abstract class Product {
                     protein.setName(name); protein.setPrice(price); protein.setDescription(description); protein.setStock(stock);
                     return protein;
                 default:
+                    //unknown type error
                     onErrorMessage.accept("Unknown class: " + className);
                     return null;
 
             }
+        //numberformat error
         }catch (NumberFormatException e){
                 onErrorMessage.accept("Inccorect number format in line: " + line);
                 return null;
+        //other error
         }catch (Exception e){
                 onErrorMessage.accept("Error reading line: " + line);
                 return null;

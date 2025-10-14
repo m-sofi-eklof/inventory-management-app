@@ -13,7 +13,9 @@ import java.util.Stack;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/// The JavaFX UI class
+/// The JavaFXUI class
+///This class is for creating and running the front end of the application responsible for running and displaying the
+/// logic in the Inventory class according to user interaction.
 ///
 public class JavaFXUI implements UI {
     /// Logic related variables
@@ -82,8 +84,8 @@ public class JavaFXUI implements UI {
 
     }
 
-    /* The showError function takes a String describing the error and returns void. The error message is displeyed in a
-     * popup. */
+    /* The showError function takes a String describing the error and returns void. In this implementation of the
+     * function the error message is displayed in a popup. */
     @Override
     public void showError(String error) {
         //make error type alert popup
@@ -407,8 +409,9 @@ public class JavaFXUI implements UI {
 
     /// Window and initial setup
     /// all functions for setting up initial window
-    /* The showWindow function takes a Pane root and displays the programs main menu scene on it. */
-    public void showWindow(StackPane root) {
+    /* The showWindow function creates a Pane root and displays the programs main menu scene on it. */
+    public void showWindow() {
+        StackPane root = new StackPane(); //creating root stackpane
         MAIN_WINDOW.setScene(createAppScene(root));
         MAIN_WINDOW.show();
         goToMenu();

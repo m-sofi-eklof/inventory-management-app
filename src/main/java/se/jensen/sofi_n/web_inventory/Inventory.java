@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /// for listing products, adding and removing products, creating/displaying nutrient tables for food products,
 /// getting product info from id, as well as adding/reducing stock and loading/writing product and nutrient table
 /// info to files.
-
+///
 public class Inventory {
     /// Attributes
     //user interface
