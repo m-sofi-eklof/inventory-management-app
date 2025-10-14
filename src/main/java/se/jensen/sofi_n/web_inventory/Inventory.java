@@ -187,10 +187,8 @@ public class Inventory {
         }
         //search for gaps(removed products)
         for (int i=low; i<=max; i++) {
-            for (Product product : products) {
-                if (product.articleID == i) {
-                    return i;
-                }
+            if (searchProduct(i)==null){
+                return i;
             }
         }
         //return max+1 if no gaps
