@@ -68,7 +68,7 @@ public class CuteTheme {
 
     /*The VBoxHBoxStileString function returns a string to pass as argument the setStyle function for javafx panes
     * */
-    public String VBoxHBoxStyleString(){
+    public String paneStyleString(){
         return "-fx-background-color: white;" +
                 "-fx-background-radius: 16; "+ // round corners
                 "-fx-padding: 24;"+ //margin to text/fields etc
